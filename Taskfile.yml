@@ -1,0 +1,53 @@
+version: '3'
+
+vars:
+  DIST_DIR: dist
+  OUTPUT_DIR: '~/Downloads/youtube-transcripts'
+
+tasks:
+  dev:
+    desc: Start the MCP server with hot reload
+    cmds:
+      - bun --watch run src/index.ts
+
+  check-deps:
+    desc: Check if required system dependencies are installed
+    cmds:
+      - |
+        echo "Checking system dependencies..."
+        command -v yt-dlp >/dev/null 2>&1 && echo "✓ yt-dlp installed" || echo "✗ yt-dlp missing (brew install yt-dlp)"
+        command -v whisper >/dev/null 2>&1 && echo "✓ whisper installed" || echo "✗ whisper missing (pip install openai-whisper)"
+        command -v ffmpeg >/dev/null 2>&1 && echo "✓ ffmpeg installed" || echo "✗ ffmpeg missing (brew install ffmpeg)"
+
+  install:
+    desc: Install dependencies
+    cmds:
+      - bun install
+
+  link:
+    desc: Link package globally for local testing
+    deps: [build]
+    cmds:
+      - npm link
+
+  unlink:
+    desc: Unlink globally linked package
+    cmds:
+      - npm unlink -g youtube-transcriber-mcp
+
+  build:
+    desc: Build the project
+    cmds:
+      - bun run build
+
+  publish:
+    desc: Publish to npm registry
+    deps: [build]
+    cmds:
+      - bun publish
+
+  publish-dry:
+    desc: Dry run publish (see what would be published)
+    deps: [build]
+    cmds:
+      - npm publish --dry-run
