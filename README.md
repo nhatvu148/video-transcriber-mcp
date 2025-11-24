@@ -5,7 +5,7 @@
 
 A Model Context Protocol (MCP) server that transcribes videos from **1000+ platforms** using OpenAI's Whisper model. Built with TypeScript for type safety and available via npx for easy installation.
 
-## ✨ What's New in v1.0
+## ✨ What's New
 
 - 🌍 **Multi-Platform Support**: Now supports 1000+ video platforms (YouTube, Vimeo, TikTok, Twitter/X, Facebook, Instagram, Twitch, educational sites, and more) via yt-dlp
 - 💻 **Cross-Platform**: Works on macOS, Linux, and Windows
