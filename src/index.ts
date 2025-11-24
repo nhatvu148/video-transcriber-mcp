@@ -29,7 +29,7 @@ class VideoTranscriberServer {
     this.server = new Server(
       {
         name: "video-transcriber",
-        version: "1.0.0",
+        version: "1.1.1",
       },
       {
         capabilities: {
@@ -409,7 +409,7 @@ You can transcribe videos from any of these platforms by providing the video URL
   async run(): Promise<void> {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
-    console.error("Video Transcriber MCP Server v1.0.0 running on stdio");
+    console.error("Video Transcriber MCP Server v1.1.1 running on stdio");
     console.error(`✨ Supports 1000+ video platforms via yt-dlp`);
     console.error(`📂 Output directory: ${OUTPUT_DIR}`);
   }
