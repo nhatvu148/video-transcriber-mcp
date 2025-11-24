@@ -1,7 +1,7 @@
 import { execSync, exec } from "child_process";
-import { mkdtempSync, readFileSync, writeFileSync, rmSync } from "fs";
+import { mkdtempSync, readFileSync, writeFileSync, rmSync, existsSync } from "fs";
 import { tmpdir } from "os";
-import { join } from "path";
+import { join, basename, extname, resolve } from "path";
 
 export type WhisperModel = "tiny" | "base" | "small" | "medium" | "large";
 
@@ -16,7 +16,7 @@ interface VideoMetadata {
 }
 
 interface TranscriptionOptions {
-  url: string;
+  url: string; // Can be a URL or local file path
   outputDir: string;
   model?: WhisperModel;
   language?: string; // ISO 639-1 code (e.g., "en", "es", "fr") or "auto"
@@ -89,6 +89,18 @@ function detectPlatform(url: string, metadata: any): string {
 }
 
 /**
+ * Check if input is a URL or local file path
+ */
+function isUrl(input: string): boolean {
+  try {
+    const url = new URL(input);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch (error) {
+    return false;
+  }
+}
+
+/**
  * Validate URL format
  */
 function validateUrl(url: string): void {
@@ -96,6 +108,84 @@ function validateUrl(url: string): void {
     new URL(url);
   } catch (error) {
     throw new Error(`Invalid URL format: ${url}`);
+  }
+}
+
+/**
+ * Validate local file path
+ */
+function validateLocalFile(filePath: string): void {
+  const absolutePath = resolve(filePath);
+
+  if (!existsSync(absolutePath)) {
+    throw new Error(`File not found: ${absolutePath}`);
+  }
+
+  // Check if it's a video file by extension
+  const ext = extname(absolutePath).toLowerCase();
+  const videoExtensions = ['.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv', '.webm', '.m4v', '.mpg', '.mpeg', '.3gp', '.ogv'];
+
+  if (!videoExtensions.includes(ext)) {
+    throw new Error(`Unsupported file format: ${ext}. Expected video file.`);
+  }
+}
+
+/**
+ * Extract audio from local video file using ffmpeg
+ */
+async function extractAudioFromLocal(
+  videoPath: string,
+  outputPath: string,
+  onProgress?: (message: string) => void
+): Promise<void> {
+  const absolutePath = resolve(videoPath);
+
+  onProgress?.(`Extracting audio from local video file...`);
+
+  // Use ffmpeg to extract audio as mp3
+  const command = `ffmpeg -i "${absolutePath}" -vn -acodec libmp3lame -q:a 2 "${outputPath}" -y`;
+
+  try {
+    await execPromise(command);
+    onProgress?.(`Audio extracted successfully`);
+  } catch (error) {
+    throw new Error(`Failed to extract audio: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+/**
+ * Get basic metadata from local video file using ffprobe
+ */
+async function getLocalVideoMetadata(videoPath: string): Promise<any> {
+  const absolutePath = resolve(videoPath);
+  const fileName = basename(absolutePath, extname(absolutePath));
+
+  try {
+    // Try to get duration using ffprobe
+    const { stdout } = await execPromise(
+      `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${absolutePath}"`
+    );
+
+    const duration = parseFloat(stdout.trim()) || 0;
+
+    return {
+      id: fileName,
+      title: fileName,
+      channel: 'Local File',
+      duration: Math.floor(duration),
+      upload_date: '',
+      extractor: 'local',
+    };
+  } catch (error) {
+    // If ffprobe fails, return basic metadata
+    return {
+      id: fileName,
+      title: fileName,
+      channel: 'Local File',
+      duration: 0,
+      upload_date: '',
+      extractor: 'local',
+    };
   }
 }
 
@@ -186,7 +276,7 @@ async function execWithRetry(
 }
 
 /**
- * Transcribe a video from any supported platform (YouTube, Vimeo, TikTok, etc.)
+ * Transcribe a video from any supported platform (YouTube, Vimeo, TikTok, etc.) or a local video file
  * @param options - Transcription options
  * @returns Paths to generated files and metadata
  */
@@ -199,46 +289,78 @@ export async function transcribeVideo(options: TranscriptionOptions): Promise<Tr
     onProgress = () => {},
   } = options;
 
-  // Validate URL
-  validateUrl(url);
+  const isLocalFile = !isUrl(url);
+
+  // Validate input
+  if (isLocalFile) {
+    validateLocalFile(url);
+    onProgress(`Processing local video file: ${url}`);
+  } else {
+    validateUrl(url);
+    onProgress(`Processing video URL: ${url}`);
+  }
 
   const tempDir = mkdtempSync(join(tmpdir(), "video-transcript-"));
 
   try {
-    // Fetch video metadata
-    onProgress(`Fetching video metadata from ${url}...`);
-    const { stdout: metadataJson } = await execWithRetry(
-      `yt-dlp --dump-json "${url}"`,
-      {},
-      3,
-      onProgress
-    );
-    const metadata = JSON.parse(metadataJson);
+    let metadata: any;
+    let platform: string;
+    let videoId: string;
+    let videoTitle: string;
+    let videoChannel: string;
+    let videoDuration: number;
+    let videoUploadDate: string;
+    const audioPath = join(tempDir, "video.mp3");
 
-    // Detect platform and extract video ID
-    const platform = detectPlatform(url, metadata);
-    onProgress(`Detected platform: ${platform}`);
+    if (isLocalFile) {
+      // Handle local file
+      const absolutePath = resolve(url);
+      onProgress(`Extracting metadata from local file...`);
 
-    const videoId = extractVideoId(url, metadata);
+      metadata = await getLocalVideoMetadata(absolutePath);
+      platform = 'Local File';
+      videoId = metadata.id;
+      videoTitle = metadata.title;
+      videoChannel = metadata.channel;
+      videoDuration = metadata.duration;
+      videoUploadDate = metadata.upload_date;
 
-    const videoTitle: string = metadata.title || "Unknown";
-    const videoChannel: string = metadata.channel || "Unknown";
-    const videoDuration: number = metadata.duration || 0;
-    const videoUploadDate: string = metadata.upload_date || "";
+      // Extract audio from local file
+      await extractAudioFromLocal(absolutePath, audioPath, onProgress);
+    } else {
+      // Handle URL
+      // Fetch video metadata
+      onProgress(`Fetching video metadata from ${url}...`);
+      const { stdout: metadataJson } = await execWithRetry(
+        `yt-dlp --dump-json "${url}"`,
+        {},
+        3,
+        onProgress
+      );
+      metadata = JSON.parse(metadataJson);
+
+      // Detect platform and extract video ID
+      platform = detectPlatform(url, metadata);
+      onProgress(`Detected platform: ${platform}`);
+
+      videoId = extractVideoId(url, metadata);
+      videoTitle = metadata.title || "Unknown";
+      videoChannel = metadata.channel || "Unknown";
+      videoDuration = metadata.duration || 0;
+      videoUploadDate = metadata.upload_date || "";
+
+      // Download audio
+      onProgress(`Downloading audio from ${platform}...`);
+      await execWithRetry(
+        `yt-dlp -x --audio-format mp3 -o "video.%(ext)s" "${url}"`,
+        { cwd: tempDir },
+        3,
+        onProgress
+      );
+    }
 
     // Create safe filename
     const safeFilename = `${videoId}-${sanitizeFilename(videoTitle)}`;
-
-    // Download audio
-    onProgress(`Downloading audio from ${platform}...`);
-    await execWithRetry(
-      `yt-dlp -x --audio-format mp3 -o "video.%(ext)s" "${url}"`,
-      { cwd: tempDir },
-      3,
-      onProgress
-    );
-
-    const audioPath = join(tempDir, "video.mp3");
 
     // Transcribe with Whisper
     const modelInfo = ` (model: ${model}${language !== 'auto' ? `, language: ${language}` : ''})`;

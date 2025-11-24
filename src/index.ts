@@ -53,13 +53,13 @@ class VideoTranscriberServer {
       tools: [
         {
           name: "transcribe_video",
-          description: "Transcribe videos from 1000+ platforms (YouTube, Vimeo, TikTok, Twitter, etc.) using OpenAI Whisper. Downloads audio and generates transcript in TXT, JSON, and Markdown formats. Requires yt-dlp and whisper to be installed.",
+          description: "Transcribe videos from 1000+ platforms (YouTube, Vimeo, TikTok, Twitter, etc.) or local video files using OpenAI Whisper. Downloads/extracts audio and generates transcript in TXT, JSON, and Markdown formats. Requires yt-dlp, whisper, and ffmpeg to be installed.",
           inputSchema: {
             type: "object",
             properties: {
               url: {
                 type: "string",
-                description: "Video URL from any supported platform (YouTube, Vimeo, TikTok, Twitter, Facebook, Instagram, Twitch, conference sites, and 1000+ more)",
+                description: "Video URL from any supported platform (YouTube, Vimeo, TikTok, Twitter, Facebook, Instagram, Twitch, conference sites, and 1000+ more) OR absolute/relative path to a local video file (mp4, avi, mov, mkv, etc.)",
               },
               output_dir: {
                 type: "string",

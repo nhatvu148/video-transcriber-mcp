@@ -37,6 +37,7 @@ We do not encourage or endorse violation of any platform's Terms of Service or c
 ## Features
 
 - 🎥 Download audio from 1000+ video platforms (powered by yt-dlp)
+- 📂 Transcribe local video files** (mp4, avi, mov, mkv, and more)
 - 🎤 Transcribe using OpenAI Whisper (local, no API key needed)
 - 🎛️ Configurable Whisper models (tiny, base, small, medium, large)
 - 🌐 Support for 90+ languages with auto-detection
@@ -204,6 +205,17 @@ Transcribe this Spanish tutorial video: https://youtube.com/watch?v=VIDEO_ID
 (language: es)
 ```
 
+#### Transcribe a local video file
+
+```
+Transcribe this local video file: /Users/myname/Videos/meeting.mp4
+```
+
+```
+Transcribe ~/Downloads/lecture.mov with high accuracy
+(use model: medium)
+```
+
 Claude will use the `transcribe_video` tool automatically with optional parameters for model and language.
 
 #### List all supported platforms
@@ -246,12 +258,21 @@ import { transcribeVideo, checkDependencies, WhisperModel } from 'video-transcri
 // Check dependencies
 checkDependencies();
 
-// Transcribe a video with custom options
+// Transcribe a video from URL with custom options
 const result = await transcribeVideo({
   url: 'https://www.youtube.com/watch?v=VIDEO_ID',
   outputDir: '/path/to/output',
   model: 'medium', // tiny, base, small, medium, large
   language: 'en', // or 'auto' for auto-detection
+  onProgress: (progress) => console.log(progress)
+});
+
+// Or transcribe a local video file
+const localResult = await transcribeVideo({
+  url: '/path/to/video.mp4',  // Local file path instead of URL
+  outputDir: '/path/to/output',
+  model: 'base',
+  language: 'auto',
   onProgress: (progress) => console.log(progress)
 });
 
@@ -283,10 +304,10 @@ For each video, three files are generated:
 
 ### `transcribe_video`
 
-Transcribe videos from 1000+ platforms to text.
+Transcribe videos from 1000+ platforms or local video files to text.
 
 **Parameters:**
-- `url` (required): Video URL from any supported platform
+- `url` (required): Video URL from any supported platform OR path to a local video file (mp4, avi, mov, mkv, etc.)
 - `output_dir` (optional): Output directory path
 - `model` (optional): Whisper model - "tiny", "base" (default), "small", "medium", "large"
 - `language` (optional): Language code (ISO 639-1: "en", "es", "fr", etc.) or "auto" (default)
