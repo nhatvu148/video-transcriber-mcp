@@ -1,12 +1,12 @@
 {
-  "name": "youtube-transcriber-mcp",
+  "name": "video-transcriber-mcp",
   "version": "1.0.0",
-  "description": "MCP server for transcribing YouTube videos using Whisper - TypeScript + Bun",
+  "description": "MCP server for transcribing videos from 1000+ platforms (YouTube, Vimeo, TikTok, Twitter, etc.) using Whisper",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "youtube-transcriber-mcp": "dist/index.js"
+    "video-transcriber-mcp": "dist/index.js"
   },
   "files": [
     "dist",
@@ -26,27 +26,33 @@
   "keywords": [
     "mcp",
     "youtube",
+    "vimeo",
+    "tiktok",
+    "twitter",
+    "video-transcription",
     "transcription",
     "whisper",
     "openai",
+    "yt-dlp",
+    "multi-platform",
     "typescript",
-    "bun",
     "model-context-protocol",
     "claude",
     "ai",
     "accessibility",
-    "captions"
+    "captions",
+    "subtitles"
   ],
   "author": "nhatvu148",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/nhatvu148/youtube-transcriber-mcp.git"
+    "url": "https://github.com/nhatvu148/video-transcriber-mcp.git"
   },
   "bugs": {
-    "url": "https://github.com/nhatvu148/youtube-transcriber-mcp/issues"
+    "url": "https://github.com/nhatvu148/video-transcriber-mcp/issues"
   },
-  "homepage": "https://github.com/nhatvu148/youtube-transcriber-mcp#readme",
+  "homepage": "https://github.com/nhatvu148/video-transcriber-mcp#readme",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4"
   },

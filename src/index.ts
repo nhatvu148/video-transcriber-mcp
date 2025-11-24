@@ -13,22 +13,22 @@ import {
 import { readFileSync, readdirSync, statSync, mkdirSync, existsSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
-import { transcribeYouTube, checkDependencies } from "./transcriber.js";
+import { transcribeVideo, checkDependencies, listSupportedSites, WhisperModel } from "./transcriber.js";
 
-const OUTPUT_DIR = join(homedir(), "Downloads", "youtube-transcripts");
+const OUTPUT_DIR = join(homedir(), "Downloads", "video-transcripts");
 
 // Ensure output directory exists
 if (!existsSync(OUTPUT_DIR)) {
   mkdirSync(OUTPUT_DIR, { recursive: true });
 }
 
-class YouTubeTranscriberServer {
+class VideoTranscriberServer {
   private server: Server;
 
   constructor() {
     this.server = new Server(
       {
-        name: "youtube-transcriber",
+        name: "video-transcriber",
         version: "1.0.0",
       },
       {
@@ -52,18 +52,27 @@ class YouTubeTranscriberServer {
     this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
       tools: [
         {
-          name: "transcribe_youtube",
-          description: "Transcribe a YouTube video to text using OpenAI Whisper. Downloads audio and generates transcript in TXT, JSON, and Markdown formats. Requires yt-dlp and whisper to be installed.",
+          name: "transcribe_video",
+          description: "Transcribe videos from 1000+ platforms (YouTube, Vimeo, TikTok, Twitter, etc.) using OpenAI Whisper. Downloads audio and generates transcript in TXT, JSON, and Markdown formats. Requires yt-dlp and whisper to be installed.",
           inputSchema: {
             type: "object",
             properties: {
               url: {
                 type: "string",
-                description: "The YouTube video URL (e.g., https://www.youtube.com/watch?v=VIDEO_ID or https://youtu.be/VIDEO_ID)",
+                description: "Video URL from any supported platform (YouTube, Vimeo, TikTok, Twitter, Facebook, Instagram, Twitch, conference sites, and 1000+ more)",
               },
               output_dir: {
                 type: "string",
                 description: `Optional output directory path. Defaults to ${OUTPUT_DIR}`,
+              },
+              model: {
+                type: "string",
+                enum: ["tiny", "base", "small", "medium", "large"],
+                description: "Whisper model to use. Larger models are more accurate but slower. Default: 'base'",
+              },
+              language: {
+                type: "string",
+                description: "Language code (ISO 639-1: en, es, fr, de, etc.) or 'auto' for automatic detection. Default: 'auto'",
               },
             },
             required: ["url"],
@@ -85,6 +94,14 @@ class YouTubeTranscriberServer {
         {
           name: "check_dependencies",
           description: "Check if all required dependencies (yt-dlp, whisper, ffmpeg) are installed",
+          inputSchema: {
+            type: "object",
+            properties: {},
+          },
+        },
+        {
+          name: "list_supported_sites",
+          description: "List all video platforms supported by yt-dlp (1000+ sites including YouTube, Vimeo, TikTok, Twitter, Facebook, Instagram, educational platforms, and more)",
           inputSchema: {
             type: "object",
             properties: {},
@@ -148,12 +165,19 @@ class YouTubeTranscriberServer {
       const { name, arguments: args } = request.params;
 
       try {
-        if (name === "transcribe_youtube") {
-          return await this.handleTranscribeYouTube(args?.url as string, args?.output_dir as string | undefined);
+        if (name === "transcribe_video") {
+          return await this.handleTranscribeVideo(
+            args?.url as string,
+            args?.output_dir as string | undefined,
+            args?.model as WhisperModel | undefined,
+            args?.language as string | undefined
+          );
         } else if (name === "list_transcripts") {
           return await this.handleListTranscripts(args?.output_dir as string | undefined);
         } else if (name === "check_dependencies") {
           return await this.handleCheckDependencies();
+        } else if (name === "list_supported_sites") {
+          return await this.handleListSupportedSites();
         } else {
           throw new Error(`Unknown tool: ${name}`);
         }
@@ -198,7 +222,12 @@ class YouTubeTranscriberServer {
     }
   }
 
-  private async handleTranscribeYouTube(url: string, outputDir?: string) {
+  private async handleTranscribeVideo(
+    url: string,
+    outputDir?: string,
+    model?: WhisperModel,
+    language?: string
+  ) {
     const dir = outputDir || OUTPUT_DIR;
 
     // Ensure output directory exists
@@ -215,7 +244,13 @@ class YouTubeTranscriberServer {
     };
 
     try {
-      const result = await transcribeYouTube(url, dir, onProgress);
+      const result = await transcribeVideo({
+        url,
+        outputDir: dir,
+        model: model || "base",
+        language: language || "auto",
+        onProgress,
+      });
 
       console.error(`[MCP] Transcription complete!`);
 
@@ -223,13 +258,18 @@ class YouTubeTranscriberServer {
         content: [
           {
             type: "text",
-            text: `✅ YouTube video transcribed successfully!
+            text: `✅ Video transcribed successfully!
 
 **Video Details:**
 - Title: ${result.metadata.title}
+- Platform: ${result.metadata.platform}
 - Channel: ${result.metadata.channel}
 - Video ID: ${result.metadata.videoId}
 - Duration: ${Math.floor(result.metadata.duration / 60)}:${String(result.metadata.duration % 60).padStart(2, '0')}
+
+**Transcription Settings:**
+- Model: ${model || 'base'}
+- Language: ${language || 'auto'}
 
 **Output Files:**
 - Text: ${result.files.txt}
@@ -248,6 +288,54 @@ You can now read the full transcript using the file paths above.`,
     } catch (error) {
       console.error(`[MCP] Transcription failed:`, error);
       throw error;
+    }
+  }
+
+  private async handleListSupportedSites() {
+    try {
+      const sites = await listSupportedSites();
+      const siteCount = sites.length;
+      const preview = sites.slice(0, 50).join(', ');
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `📺 Supported Video Platforms (${siteCount} total)
+
+**Popular platforms include:**
+- YouTube
+- Vimeo
+- TikTok
+- Twitter/X
+- Facebook
+- Instagram
+- Twitch
+- Dailymotion
+- Reddit
+- LinkedIn
+- Many educational and conference platforms
+
+**First 50 extractors:**
+${preview}${siteCount > 50 ? '...' : ''}
+
+**Total: ${siteCount} supported extractors**
+
+You can transcribe videos from any of these platforms by providing the video URL!`,
+          },
+        ],
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `❌ ${errorMessage}`,
+          },
+        ],
+        isError: true,
+      };
     }
   }
 
@@ -321,10 +409,11 @@ You can now read the full transcript using the file paths above.`,
   async run(): Promise<void> {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
-    console.error("YouTube Transcriber MCP Server v1.0.0 (TypeScript + Bun) running on stdio");
-    console.error(`Output directory: ${OUTPUT_DIR}`);
+    console.error("Video Transcriber MCP Server v1.0.0 running on stdio");
+    console.error(`✨ Supports 1000+ video platforms via yt-dlp`);
+    console.error(`📂 Output directory: ${OUTPUT_DIR}`);
   }
 }
 
-const server = new YouTubeTranscriberServer();
+const server = new VideoTranscriberServer();
 server.run().catch(console.error);

@@ -1,16 +1,28 @@
-# YouTube Transcriber MCP Server
+# Video Transcriber MCP Server
 
-[![npm version](https://badge.fury.io/js/youtube-transcriber-mcp.svg)](https://www.npmjs.com/package/youtube-transcriber-mcp)
+[![npm version](https://badge.fury.io/js/video-transcriber-mcp.svg)](https://www.npmjs.com/package/video-transcriber-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A Model Context Protocol (MCP) server that transcribes YouTube videos using OpenAI's Whisper model. Built with TypeScript for type safety and available via npx for easy installation.
+A Model Context Protocol (MCP) server that transcribes videos from **1000+ platforms** using OpenAI's Whisper model. Built with TypeScript for type safety and available via npx for easy installation.
+
+## ✨ What's New in v1.0
+
+- 🌍 **Multi-Platform Support**: Now supports 1000+ video platforms (YouTube, Vimeo, TikTok, Twitter/X, Facebook, Instagram, Twitch, educational sites, and more) via yt-dlp
+- 💻 **Cross-Platform**: Works on macOS, Linux, and Windows
+- 🎛️ **Configurable Whisper Models**: Choose from tiny, base, small, medium, or large models
+- 🌐 **Language Support**: Transcribe in 90+ languages or use auto-detection
+- 🔄 **Automatic Retries**: Network failures are handled automatically with exponential backoff
+- 🎯 **Platform Detection**: Automatically detects the video platform
+- 📋 **List Supported Sites**: New tool to see all 1000+ supported platforms
+- ⚡ **Improved Error Handling**: More specific and helpful error messages
+- 🔒 **Better Filename Handling**: Improved sanitization preserving more characters
 
 ## ⚠️ Legal Notice
 
 **This tool is intended for educational, accessibility, and research purposes only.**
 
 Before using this tool, please understand:
-- YouTube's Terms of Service generally prohibit downloading content
+- Most platforms' Terms of Service generally prohibit downloading content
 - **You are responsible** for ensuring your use complies with applicable laws
 - This tool should primarily be used for:
   - ✅ Your own content
@@ -20,28 +32,86 @@ Before using this tool, please understand:
 
 **Please read [LEGAL.md](LEGAL.md) for detailed legal information before using this tool.**
 
-We do not encourage or endorse violation of YouTube's Terms of Service or copyright infringement. Use responsibly and ethically.
+We do not encourage or endorse violation of any platform's Terms of Service or copyright infringement. Use responsibly and ethically.
 
 ## Features
 
-- 🎥 Download audio from any YouTube video
+- 🎥 Download audio from 1000+ video platforms (powered by yt-dlp)
 - 🎤 Transcribe using OpenAI Whisper (local, no API key needed)
+- 🎛️ Configurable Whisper models (tiny, base, small, medium, large)
+- 🌐 Support for 90+ languages with auto-detection
 - 📝 Generate transcripts in multiple formats (TXT, JSON, Markdown)
 - 📚 List and read previous transcripts as MCP resources
 - 🔌 Integrate seamlessly with Claude Desktop or any MCP client
 - ⚡ TypeScript + npx for easy installation
 - 🔒 Full type safety with TypeScript
 - 🔍 Automatic dependency checking
+- 🔄 Automatic retry logic for network failures
+- 🎯 Platform detection (shows which platform you're transcribing from)
+
+## Supported Platforms
+
+Thanks to yt-dlp, this tool supports **1000+ video platforms** including:
+
+- **Social Media**: YouTube, TikTok, Twitter/X, Facebook, Instagram, Reddit, LinkedIn
+- **Video Hosting**: Vimeo, Dailymotion, Twitch
+- **Educational**: Coursera, Udemy, Khan Academy, LinkedIn Learning, edX
+- **News**: BBC, CNN, NBC, PBS
+- **Conference/Tech**: YouTube (tech talks), Vimeo (conferences)
+- **And many, many more!**
+
+Run the `list_supported_sites` tool to see the complete list of 1000+ supported platforms.
 
 ## Prerequisites
 
-```bash
-# Required tools
-brew install yt-dlp         # YouTube downloader
-brew install openai-whisper # Whisper transcription
-brew install ffmpeg         # Audio processing (usually installed with yt-dlp)
+### macOS
 
-# Verify installations
+```bash
+brew install yt-dlp         # Video downloader (supports 1000+ sites)
+brew install openai-whisper # Whisper transcription
+brew install ffmpeg         # Audio processing
+```
+
+### Linux
+
+```bash
+# Ubuntu/Debian
+sudo apt update
+sudo apt install ffmpeg
+pip install yt-dlp openai-whisper
+
+# Fedora/RHEL
+sudo dnf install ffmpeg
+pip install yt-dlp openai-whisper
+
+# Arch Linux
+sudo pacman -S ffmpeg
+pip install yt-dlp openai-whisper
+```
+
+### Windows
+
+**Option 1: Using pip (recommended)**
+```powershell
+# Install Python from python.org first
+pip install yt-dlp openai-whisper
+
+# Install ffmpeg using Chocolatey
+choco install ffmpeg
+
+# Or download ffmpeg from: https://ffmpeg.org/download.html
+```
+
+**Option 2: Using winget**
+```powershell
+winget install yt-dlp.yt-dlp
+winget install Gyan.FFmpeg
+pip install openai-whisper
+```
+
+### Verify installations (all platforms)
+
+```bash
 yt-dlp --version
 whisper --version
 ffmpeg -version
@@ -56,9 +126,9 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
 ```json
 {
   "mcpServers": {
-    "youtube-transcriber": {
+    "video-transcriber": {
       "command": "npx",
-      "args": ["-y", "youtube-transcriber-mcp"]
+      "args": ["-y", "video-transcriber-mcp"]
     }
   }
 }
@@ -69,11 +139,11 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
 ```json
 {
   "mcpServers": {
-    "youtube-transcriber": {
+    "video-transcriber": {
       "command": "npx",
       "args": [
         "-y",
-        "github:nhatvu148/youtube-transcriber-mcp"
+        "github:nhatvu148/video-transcriber-mcp"
       ]
     }
   }
@@ -86,8 +156,8 @@ That's it! No installation needed. npx will automatically download and run the p
 
 ```bash
 # Clone the repository
-git clone https://github.com/nhatvu148/youtube-transcriber-mcp.git
-cd youtube-transcriber-mcp
+git clone https://github.com/nhatvu148/video-transcriber-mcp.git
+cd video-transcriber-mcp
 
 # Install dependencies
 npm install
@@ -100,9 +170,9 @@ npm run build
 # Use in Claude Desktop with local path
 {
   "mcpServers": {
-    "youtube-transcriber": {
+    "video-transcriber": {
       "command": "npx",
-      "args": ["-y", "/path/to/youtube-transcriber-mcp"]
+      "args": ["-y", "/path/to/video-transcriber-mcp"]
     }
   }
 }
@@ -114,24 +184,44 @@ npm run build
 
 Once configured, you can use these tools in Claude Desktop:
 
-#### Transcribe a YouTube video
+#### Transcribe a video from any platform
 
 ```
 Please transcribe this YouTube video: https://www.youtube.com/watch?v=VIDEO_ID
 ```
 
-Claude will use the `transcribe_youtube` tool automatically.
+```
+Transcribe this TikTok video: https://www.tiktok.com/@user/video/123456789
+```
+
+```
+Get the transcript from this Vimeo video with high accuracy: https://vimeo.com/123456789
+(use model: large)
+```
+
+```
+Transcribe this Spanish tutorial video: https://youtube.com/watch?v=VIDEO_ID
+(language: es)
+```
+
+Claude will use the `transcribe_video` tool automatically with optional parameters for model and language.
+
+#### List all supported platforms
+
+```
+What platforms can you transcribe videos from?
+```
 
 #### List available transcripts
 
 ```
-List all my YouTube transcripts
+List all my video transcripts
 ```
 
 #### Check dependencies
 
 ```
-Check if my YouTube transcriber dependencies are installed
+Check if my video transcriber dependencies are installed
 ```
 
 #### Read a transcript
@@ -145,31 +235,34 @@ Show me the transcript for [video name]
 If you install the package:
 
 ```bash
-npm install youtube-transcriber-mcp
+npm install video-transcriber-mcp
 ```
 
 You can import and use it programmatically:
 
 ```typescript
-import { transcribeYouTube, checkDependencies } from 'youtube-transcriber-mcp';
+import { transcribeVideo, checkDependencies, WhisperModel } from 'video-transcriber-mcp';
 
 // Check dependencies
 checkDependencies();
 
-// Transcribe a video
-const result = await transcribeYouTube(
-  'https://www.youtube.com/watch?v=VIDEO_ID',
-  '/path/to/output',
-  (progress) => console.log(progress)
-);
+// Transcribe a video with custom options
+const result = await transcribeVideo({
+  url: 'https://www.youtube.com/watch?v=VIDEO_ID',
+  outputDir: '/path/to/output',
+  model: 'medium', // tiny, base, small, medium, large
+  language: 'en', // or 'auto' for auto-detection
+  onProgress: (progress) => console.log(progress)
+});
 
 console.log('Title:', result.metadata.title);
+console.log('Platform:', result.metadata.platform);
 console.log('Files:', result.files);
 ```
 
 ## Output
 
-Transcripts are saved to `~/Downloads/youtube-transcripts/` by default.
+Transcripts are saved to `~/Downloads/video-transcripts/` by default.
 
 For each video, three files are generated:
 
@@ -180,7 +273,7 @@ For each video, three files are generated:
 ### Example
 
 ```
-~/Downloads/youtube-transcripts/
+~/Downloads/video-transcripts/
 ├── 7JBuA1GHAjQ-From-AI-skeptic-to-UNFAIR-advantage.txt
 ├── 7JBuA1GHAjQ-From-AI-skeptic-to-UNFAIR-advantage.json
 └── 7JBuA1GHAjQ-From-AI-skeptic-to-UNFAIR-advantage.md
@@ -188,13 +281,24 @@ For each video, three files are generated:
 
 ## MCP Tools
 
-### `transcribe_youtube`
+### `transcribe_video`
 
-Transcribe a YouTube video to text.
+Transcribe videos from 1000+ platforms to text.
 
 **Parameters:**
-- `url` (required): YouTube video URL
+- `url` (required): Video URL from any supported platform
 - `output_dir` (optional): Output directory path
+- `model` (optional): Whisper model - "tiny", "base" (default), "small", "medium", "large"
+- `language` (optional): Language code (ISO 639-1: "en", "es", "fr", etc.) or "auto" (default)
+
+**Model Comparison:**
+| Model | Speed | Accuracy | Use Case |
+|-------|-------|----------|----------|
+| tiny | ⚡⚡⚡⚡⚡ | ⭐⭐ | Quick drafts, testing |
+| base | ⚡⚡⚡⚡ | ⭐⭐⭐ | General use (default) |
+| small | ⚡⚡⚡ | ⭐⭐⭐⭐ | Better accuracy |
+| medium | ⚡⚡ | ⭐⭐⭐⭐⭐ | High accuracy |
+| large | ⚡ | ⭐⭐⭐⭐⭐⭐ | Best accuracy, slow |
 
 ### `list_transcripts`
 
@@ -207,6 +311,10 @@ List all available transcripts with metadata.
 
 Verify that all required dependencies are installed.
 
+### `list_supported_sites`
+
+List all 1000+ supported video platforms.
+
 ## Configuration Examples
 
 ### Claude Desktop (Recommended)
@@ -214,9 +322,9 @@ Verify that all required dependencies are installed.
 ```json
 {
   "mcpServers": {
-    "youtube-transcriber": {
+    "video-transcriber": {
       "command": "npx",
-      "args": ["-y", "youtube-transcriber-mcp"]
+      "args": ["-y", "video-transcriber-mcp"]
     }
   }
 }
@@ -227,9 +335,9 @@ Verify that all required dependencies are installed.
 ```json
 {
   "mcpServers": {
-    "youtube-transcriber": {
+    "video-transcriber": {
       "command": "npx",
-      "args": ["-y", "github:nhatvu148/youtube-transcriber-mcp"]
+      "args": ["-y", "github:nhatvu148/video-transcriber-mcp"]
     }
   }
 }
@@ -240,9 +348,9 @@ Verify that all required dependencies are installed.
 ```json
 {
   "mcpServers": {
-    "youtube-transcriber": {
+    "video-transcriber": {
       "command": "npx",
-      "args": ["-y", "/absolute/path/to/youtube-transcriber-mcp"]
+      "args": ["-y", "/absolute/path/to/video-transcriber-mcp"]
     }
   }
 }
@@ -272,7 +380,7 @@ npm run clean
 ### Project Structure
 
 ```
-youtube-transcriber-mcp/
+video-transcriber-mcp/
 ├── src/
 │   ├── index.ts          # MCP server implementation
 │   └── transcriber.ts    # Core transcription logic
@@ -308,16 +416,14 @@ npm publish
 
 # Or publish from GitHub
 # Push to GitHub and users can use:
-# npx github:username/youtube-transcriber-mcp
+# npx github:username/video-transcriber-mcp
 ```
 
 ## Troubleshooting
 
 ### Dependencies not installed
 
-```bash
-brew install yt-dlp openai-whisper ffmpeg
-```
+See the [Prerequisites](#prerequisites) section above for platform-specific installation instructions.
 
 ### npx can't find the package
 
@@ -335,6 +441,10 @@ npm run check
 
 The build process automatically makes `dist/index.js` executable via the `fix-shebang` script.
 
+### "Unsupported URL" error
+
+The platform might not be supported by yt-dlp. Run `list_supported_sites` to see all supported platforms.
+
 ## Performance
 
 | Video Length | Processing Time (base model) | Output Size |
@@ -344,16 +454,30 @@ The build process automatically makes `dist/index.js` executable via the `fix-sh
 | 30 minutes   | ~5-10 minutes                | ~30-50 KB   |
 | 1 hour       | ~10-20 minutes               | ~60-100 KB  |
 
-*Times are approximate and depend on CPU speed*
+*Times are approximate and depend on CPU speed and model choice*
 
 ## Advanced Configuration
 
 ### Custom Whisper Model
 
-Edit `src/transcriber.ts` to change the model:
+Specify in the tool call parameters:
 
-```typescript
---model base  // Options: tiny, base, small, medium, large
+```json
+{
+  "url": "https://youtube.com/watch?v=...",
+  "model": "large"
+}
+```
+
+### Custom Language
+
+Specify the language code:
+
+```json
+{
+  "url": "https://youtube.com/watch?v=...",
+  "language": "es"
+}
 ```
 
 ### Custom Output Directory
@@ -366,6 +490,30 @@ Specify in the tool call:
   "output_dir": "/custom/path"
 }
 ```
+
+## Migration from v1.0 to v2.0
+
+⚠️ **Breaking Changes in v2.0:**
+
+If you were using the programmatic API in v1.0, you'll need to update your code:
+
+**v1.0 (deprecated):**
+```typescript
+await transcribeYouTube(url, outputDir, onProgress);
+```
+
+**v2.0 (new API):**
+```typescript
+await transcribeVideo({
+  url,
+  outputDir,
+  model: 'base',      // optional, default: 'base'
+  language: 'auto',   // optional, default: 'auto'
+  onProgress
+});
+```
+
+**Note:** If you're using the MCP server through Claude Desktop, no changes are needed. The tool name `transcribe_video` remains the same.
 
 ## Contributing
 
@@ -383,15 +531,15 @@ MIT License - see [LICENSE](LICENSE) file for details
 
 ## Links
 
-- [GitHub Repository](https://github.com/nhatvu148/youtube-transcriber-mcp)
-- [npm Package](https://www.npmjs.com/package/youtube-transcriber-mcp)
-- [Issues](https://github.com/nhatvu148/youtube-transcriber-mcp/issues)
+- [GitHub Repository](https://github.com/nhatvu148/video-transcriber-mcp)
+- [npm Package](https://www.npmjs.com/package/video-transcriber-mcp)
+- [Issues](https://github.com/nhatvu148/video-transcriber-mcp/issues)
 - [Model Context Protocol](https://modelcontextprotocol.io)
 
 ## Acknowledgments
 
 - OpenAI Whisper for transcription
-- yt-dlp for YouTube downloading
+- yt-dlp for multi-platform video downloading (1000+ sites)
 - Model Context Protocol SDK
 - Claude by Anthropic
 

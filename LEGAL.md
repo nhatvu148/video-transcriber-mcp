@@ -17,7 +17,7 @@ From [YouTube's Terms of Service](https://www.youtube.com/t/terms):
 
 ### This Tool's Position
 
-**youtube-transcriber-mcp** uses `yt-dlp` to download audio for transcription purposes. While the tool itself is neutral, **how you use it matters**.
+**video-transcriber-mcp** uses `yt-dlp` to download audio for transcription purposes. While the tool itself is neutral, **how you use it matters**.
 
 ## Legal & Ethical Use Cases
 

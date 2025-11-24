@@ -3,12 +3,24 @@ import { mkdtempSync, readFileSync, writeFileSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 
+export type WhisperModel = "tiny" | "base" | "small" | "medium" | "large";
+
 interface VideoMetadata {
   videoId: string;
   title: string;
   channel: string;
   duration: number;
   uploadDate: string;
+  platform: string; // e.g., "YouTube", "Vimeo", "TikTok"
+  url: string;
+}
+
+interface TranscriptionOptions {
+  url: string;
+  outputDir: string;
+  model?: WhisperModel;
+  language?: string; // ISO 639-1 code (e.g., "en", "es", "fr") or "auto"
+  onProgress?: (message: string) => void;
 }
 
 interface TranscriptionResult {
@@ -29,28 +41,74 @@ interface ExecResult {
 }
 
 /**
- * Extract video ID from YouTube URL
+ * Extract video ID from URL (works for YouTube and other platforms)
  */
-function extractVideoId(url: string): string {
-  // Match ?v=VIDEO_ID pattern
+function extractVideoId(url: string, metadata: any): string {
+  // Try YouTube patterns first
   let match = url.match(/[?&]v=([^&]+)/);
   if (match) return match[1];
 
-  // Match youtu.be/VIDEO_ID pattern
   match = url.match(/youtu\.be\/([^?]+)/);
   if (match) return match[1];
 
-  throw new Error("Could not extract video ID from URL");
+  // Use yt-dlp metadata ID if available
+  if (metadata.id) return metadata.id;
+
+  // Fallback: generate ID from URL
+  const hash = Buffer.from(url).toString('base64').substring(0, 11).replace(/\+/g, '-').replace(/\//g, '_');
+  return hash;
 }
 
 /**
- * Sanitize filename
+ * Detect platform from URL or metadata
+ */
+function detectPlatform(url: string, metadata: any): string {
+  const urlLower = url.toLowerCase();
+
+  // Check URL patterns
+  if (urlLower.includes('youtube.com') || urlLower.includes('youtu.be')) return 'YouTube';
+  if (urlLower.includes('vimeo.com')) return 'Vimeo';
+  if (urlLower.includes('tiktok.com')) return 'TikTok';
+  if (urlLower.includes('twitter.com') || urlLower.includes('x.com')) return 'Twitter/X';
+  if (urlLower.includes('facebook.com') || urlLower.includes('fb.watch')) return 'Facebook';
+  if (urlLower.includes('instagram.com')) return 'Instagram';
+  if (urlLower.includes('twitch.tv')) return 'Twitch';
+  if (urlLower.includes('dailymotion.com')) return 'Dailymotion';
+
+  // Check metadata extractor
+  if (metadata.extractor) {
+    const extractor = metadata.extractor.toLowerCase();
+    if (extractor.includes('youtube')) return 'YouTube';
+    if (extractor.includes('vimeo')) return 'Vimeo';
+    if (extractor.includes('tiktok')) return 'TikTok';
+    if (extractor.includes('twitter')) return 'Twitter/X';
+    return metadata.extractor; // Return the extractor name as platform
+  }
+
+  return 'Unknown';
+}
+
+/**
+ * Validate URL format
+ */
+function validateUrl(url: string): void {
+  try {
+    new URL(url);
+  } catch (error) {
+    throw new Error(`Invalid URL format: ${url}`);
+  }
+}
+
+/**
+ * Sanitize filename - improved to preserve more characters
  */
 function sanitizeFilename(str: string): string {
   return str
-    .replace(/[^a-zA-Z0-9 ]/g, "-")
-    .replace(/\s+/g, "-")
-    .substring(0, 100);
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, "") // Remove invalid filename characters
+    .replace(/\s+/g, "-") // Replace spaces with hyphens
+    .replace(/--+/g, "-") // Replace multiple hyphens with single
+    .replace(/^-+|-+$/g, "") // Trim hyphens from start/end
+    .substring(0, 150); // Increase length limit
 }
 
 /**
@@ -87,30 +145,81 @@ function execPromise(command: string, options: Record<string, any> = {}): Promis
 }
 
 /**
- * Transcribe a YouTube video
- * @param url - YouTube video URL
- * @param outputDir - Output directory path
- * @param onProgress - Progress callback function
+ * Execute command with retries for network failures
+ */
+async function execWithRetry(
+  command: string,
+  options: Record<string, any> = {},
+  maxRetries: number = 3,
+  onProgress?: (message: string) => void
+): Promise<ExecResult> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await execPromise(command, options);
+    } catch (error) {
+      lastError = error as Error;
+      const errorMsg = lastError.message.toLowerCase();
+
+      // Check if it's a network-related error
+      const isNetworkError =
+        errorMsg.includes('network') ||
+        errorMsg.includes('connection') ||
+        errorMsg.includes('timeout') ||
+        errorMsg.includes('unreachable') ||
+        errorMsg.includes('temporary failure');
+
+      if (!isNetworkError || attempt === maxRetries) {
+        throw lastError;
+      }
+
+      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000); // Exponential backoff, max 10s
+      if (onProgress) {
+        onProgress(`Network error, retrying in ${delay / 1000}s (attempt ${attempt}/${maxRetries})...`);
+      }
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+
+  throw lastError!;
+}
+
+/**
+ * Transcribe a video from any supported platform (YouTube, Vimeo, TikTok, etc.)
+ * @param options - Transcription options
  * @returns Paths to generated files and metadata
  */
-export async function transcribeYouTube(
-  url: string,
-  outputDir: string,
-  onProgress: (message: string) => void = () => {}
-): Promise<TranscriptionResult> {
-  const tempDir = mkdtempSync(join(tmpdir(), "youtube-transcript-"));
+export async function transcribeVideo(options: TranscriptionOptions): Promise<TranscriptionResult> {
+  const {
+    url,
+    outputDir,
+    model = "base",
+    language = "auto",
+    onProgress = () => {},
+  } = options;
+
+  // Validate URL
+  validateUrl(url);
+
+  const tempDir = mkdtempSync(join(tmpdir(), "video-transcript-"));
 
   try {
-    // Extract video ID
-    onProgress("Extracting video ID...");
-    const videoId = extractVideoId(url);
-
     // Fetch video metadata
-    onProgress("Fetching video metadata...");
-    const { stdout: metadataJson } = await execPromise(
-      `yt-dlp --dump-json "${url}"`
+    onProgress(`Fetching video metadata from ${url}...`);
+    const { stdout: metadataJson } = await execWithRetry(
+      `yt-dlp --dump-json "${url}"`,
+      {},
+      3,
+      onProgress
     );
     const metadata = JSON.parse(metadataJson);
+
+    // Detect platform and extract video ID
+    const platform = detectPlatform(url, metadata);
+    onProgress(`Detected platform: ${platform}`);
+
+    const videoId = extractVideoId(url, metadata);
 
     const videoTitle: string = metadata.title || "Unknown";
     const videoChannel: string = metadata.channel || "Unknown";
@@ -121,20 +230,27 @@ export async function transcribeYouTube(
     const safeFilename = `${videoId}-${sanitizeFilename(videoTitle)}`;
 
     // Download audio
-    onProgress("Downloading audio...");
-    await execPromise(
+    onProgress(`Downloading audio from ${platform}...`);
+    await execWithRetry(
       `yt-dlp -x --audio-format mp3 -o "video.%(ext)s" "${url}"`,
-      { cwd: tempDir }
+      { cwd: tempDir },
+      3,
+      onProgress
     );
 
     const audioPath = join(tempDir, "video.mp3");
 
     // Transcribe with Whisper
-    onProgress("Transcribing audio with Whisper (this may take a few minutes)...");
-    await execPromise(
-      `whisper "${audioPath}" --model base --output_format all --output_dir "${tempDir}" --language en`,
-      { cwd: tempDir }
-    );
+    const modelInfo = ` (model: ${model}${language !== 'auto' ? `, language: ${language}` : ''})`;
+    onProgress(`Transcribing audio with Whisper${modelInfo}...`);
+
+    // Build whisper command
+    let whisperCmd = `whisper "${audioPath}" --model ${model} --output_format all --output_dir "${tempDir}"`;
+    if (language && language !== 'auto') {
+      whisperCmd += ` --language ${language}`;
+    }
+
+    await execPromise(whisperCmd, { cwd: tempDir });
 
     // Read transcript files
     const txtContent = readFileSync(join(tempDir, "video.txt"), "utf-8");
@@ -155,6 +271,7 @@ export async function transcribeYouTube(
     const mdContent = `# ${videoTitle}
 
 **Video:** ${url}
+**Platform:** ${platform}
 **Channel:** ${videoChannel}
 **Video ID:** ${videoId}
 **Duration:** ${formatDuration(videoDuration)}
@@ -168,17 +285,17 @@ ${txtContent}
 
 ---
 
-*Transcribed using OpenAI Whisper*
+*Transcribed using OpenAI Whisper (model: ${model}${language !== 'auto' ? `, language: ${language}` : ''})*
 `;
 
     writeFileSync(mdOutput, mdContent);
 
-    onProgress("Cleaning up...");
+    onProgress("Cleaning up temporary files...");
 
     // Cleanup temp directory
     rmSync(tempDir, { recursive: true, force: true });
 
-    onProgress("Done!");
+    onProgress("✅ Transcription complete!");
 
     return {
       success: true,
@@ -193,6 +310,8 @@ ${txtContent}
         channel: videoChannel,
         duration: videoDuration,
         uploadDate: videoUploadDate,
+        platform,
+        url,
       },
       transcript: txtContent,
       transcriptPreview: txtContent.substring(0, 500),
@@ -231,12 +350,34 @@ export function checkDependencies(): boolean {
   }
 
   if (missing.length > 0) {
+    const installInstructions = missing.map(dep => {
+      if (dep === "yt-dlp" || dep === "whisper") {
+        return `  ${dep}: pip install ${dep === "whisper" ? "openai-whisper" : dep}`;
+      }
+      return `  ${dep}: Install from package manager or https://ffmpeg.org`;
+    }).join("\n");
+
     throw new Error(
       `Missing dependencies: ${missing.join(", ")}\n\n` +
-      `Please install:\n` +
-      missing.map(dep => `  brew install ${dep}`).join("\n")
+      `Please install:\n${installInstructions}\n\n` +
+      `See README for platform-specific installation instructions.`
     );
   }
 
   return true;
+}
+
+/**
+ * Get list of supported sites from yt-dlp
+ */
+export async function listSupportedSites(): Promise<string[]> {
+  try {
+    const { stdout } = await execPromise('yt-dlp --list-extractors');
+    return stdout
+      .split('\n')
+      .filter(line => line.trim().length > 0)
+      .sort();
+  } catch (error) {
+    throw new Error('Failed to get supported sites. Make sure yt-dlp is installed.');
+  }
 }
