@@ -43,7 +43,7 @@ We do not encourage or endorse violation of any platform's Terms of Service or c
 - 🌐 Support for 90+ languages with auto-detection
 - 📝 Generate transcripts in multiple formats (TXT, JSON, Markdown)
 - 📚 List and read previous transcripts as MCP resources
-- 🔌 Integrate seamlessly with Claude Desktop or any MCP client
+- 🔌 Integrate seamlessly with Claude Code or any MCP client
 - ⚡ TypeScript + npx for easy installation
 - 🔒 Full type safety with TypeScript
 - 🔍 Automatic dependency checking
@@ -122,7 +122,7 @@ ffmpeg -version
 
 ### For End Users (Using npx)
 
-Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+Add to your Claude Code config (`~/.claude/settings.json`):
 
 ```json
 {
@@ -168,7 +168,7 @@ bun install
 # Build the project
 npm run build
 
-# Use in Claude Desktop with local path
+# Use in Claude Code with local path
 {
   "mcpServers": {
     "video-transcriber": {
@@ -181,9 +181,9 @@ npm run build
 
 ## Usage
 
-### From Claude Desktop GUI
+### From Claude Code
 
-Once configured, you can use these tools in Claude Desktop:
+Once configured, you can use these tools in Claude Code:
 
 #### Transcribe a video from any platform
 
@@ -338,7 +338,7 @@ List all 1000+ supported video platforms.
 
 ## Configuration Examples
 
-### Claude Desktop (Recommended)
+### Claude Code (Recommended)
 
 ```json
 {
