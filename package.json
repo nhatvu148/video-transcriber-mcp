@@ -1,0 +1,60 @@
+{
+  "name": "youtube-transcriber-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for transcribing YouTube videos using Whisper - TypeScript + Bun",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "youtube-transcriber-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "build": "npm run clean && tsc && npm run fix-shebang",
+    "fix-shebang": "chmod +x dist/index.js",
+    "dev": "bun --watch src/index.ts",
+    "test": "bun run src/transcriber.ts",
+    "check": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "youtube",
+    "transcription",
+    "whisper",
+    "openai",
+    "typescript",
+    "bun",
+    "model-context-protocol",
+    "claude",
+    "ai",
+    "accessibility",
+    "captions"
+  ],
+  "author": "nhatvu148",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nhatvu148/youtube-transcriber-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/nhatvu148/youtube-transcriber-mcp/issues"
+  },
+  "homepage": "https://github.com/nhatvu148/youtube-transcriber-mcp#readme",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
