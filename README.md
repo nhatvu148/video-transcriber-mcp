@@ -491,30 +491,6 @@ Specify in the tool call:
 }
 ```
 
-## Migration from v1.0 to v2.0
-
-⚠️ **Breaking Changes in v2.0:**
-
-If you were using the programmatic API in v1.0, you'll need to update your code:
-
-**v1.0 (deprecated):**
-```typescript
-await transcribeYouTube(url, outputDir, onProgress);
-```
-
-**v2.0 (new API):**
-```typescript
-await transcribeVideo({
-  url,
-  outputDir,
-  model: 'base',      // optional, default: 'base'
-  language: 'auto',   // optional, default: 'auto'
-  onProgress
-});
-```
-
-**Note:** If you're using the MCP server through Claude Desktop, no changes are needed. The tool name `transcribe_video` remains the same.
-
 ## Contributing
 
 Contributions welcome! Please:
