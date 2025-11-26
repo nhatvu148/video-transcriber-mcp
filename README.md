@@ -5,6 +5,8 @@
 
 A Model Context Protocol (MCP) server that transcribes videos from **1000+ platforms** using OpenAI's Whisper model. Built with TypeScript for type safety and available via npx for easy installation.
 
+> 🚀 **Looking for better performance?** Check out the [**Rust version**](https://github.com/nhatvu148/video-transcriber-mcp-rs) which uses whisper.cpp for significantly faster transcription with lower memory usage. Available on [crates.io](https://crates.io/crates/video-transcriber-mcp) with `cargo install video-transcriber-mcp`.
+
 ## ✨ What's New
 
 - 🌍 **Multi-Platform Support**: Now supports 1000+ video platforms (YouTube, Vimeo, TikTok, Twitter/X, Facebook, Instagram, Twitch, educational sites, and more) via yt-dlp
