@@ -528,10 +528,27 @@ Contributions welcome! Please:
 
 MIT License - see [LICENSE](LICENSE) file for details
 
+## TypeScript vs Rust Version
+
+This is the **TypeScript version** - great for:
+- ✅ Quick setup with npx (no installation)
+- ✅ Node.js ecosystem familiarity
+- ✅ Easy to modify and extend
+- ✅ Good for learning and prototyping
+
+Consider the **[Rust version](https://github.com/nhatvu148/video-transcriber-mcp-rs)** if you need:
+- 🚀 **Faster transcription** (uses whisper.cpp)
+- 💾 **Lower memory usage**
+- ⚡ **Native performance**
+- 📦 **Standalone binary** (no Node.js required)
+
+Both versions support the same MCP protocol and work identically with Claude Code!
+
 ## Links
 
 - [GitHub Repository](https://github.com/nhatvu148/video-transcriber-mcp)
 - [npm Package](https://www.npmjs.com/package/video-transcriber-mcp)
+- [🦀 Rust Version](https://github.com/nhatvu148/video-transcriber-mcp-rs) ← **For better performance**
 - [Issues](https://github.com/nhatvu148/video-transcriber-mcp/issues)
 - [Model Context Protocol](https://modelcontextprotocol.io)
 
