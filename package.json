@@ -12,6 +12,7 @@
     "dist",
     "scripts/download-models.sh",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "scripts": {
@@ -21,6 +22,7 @@
     "dev": "bun --watch src/index.ts",
     "test": "bun run src/transcriber.ts",
     "check": "tsc --noEmit",
+    "conformance": "node scripts/conformance.mjs",
     "clean": "rm -rf dist",
     "prepublishOnly": "npm run build"
   },

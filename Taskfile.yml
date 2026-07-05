@@ -45,6 +45,12 @@ tasks:
     cmds:
       - bun run build
 
+  conformance:
+    desc: "Verify the TS MCP tool contract still matches the Rust source of truth"
+    deps: [build]
+    cmds:
+      - node scripts/conformance.mjs
+
   release:
     desc: "Tag & GitHub-release the current package.json version (CI then publishes to npm)"
     cmds:

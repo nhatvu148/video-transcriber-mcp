@@ -829,7 +829,7 @@ export function checkDependencies(): string {
   // --- JavaScript runtime (Deno) — yt-dlp requires it to download from YouTube ---
   const denoLine = firstLine("deno", ["--version"]);
   if (!denoLine) {
-    lines.push("❌ deno (JS runtime, required for YouTube): NOT installed — install Deno ≥ 2.3.0");
+    lines.push("⚠️  deno (JS runtime, recommended for YouTube): not installed — the android client covers most videos; some need Deno ≥ 2.3.0");
   } else {
     const m = denoLine.match(/(\d+)\.(\d+)\.(\d+)/);
     if (m) {

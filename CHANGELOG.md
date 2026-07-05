@@ -15,10 +15,10 @@ installed. Run the `check_dependencies` tool to verify your setup.
   through the `whisper-cli` binary — 4–10× faster, with no Python/PyTorch.
 - **New prerequisites** (see README → Prerequisites):
   - `whisper-cpp` (provides `whisper-cli`) — e.g. `brew install whisper-cpp`
-  - **Deno ≥ 2.3.0** — required by yt-dlp to download from YouTube
-    (`brew install deno`). Without it, YouTube fails with errors that look like
-    bot-detection.
   - whisper.cpp **model files** — `bash scripts/download-models.sh base`
+  - **Deno ≥ 2.3.0** *(optional, recommended)* — the `android` extractor client
+    handles most YouTube videos without a JS runtime; Deno makes the occasional
+    challenge-gated video work too (`brew install deno`).
 - **`checkDependencies()` now returns a status string** instead of throwing when
   a tool is missing. Update any programmatic callers to read the return value.
 - **JSON output shape** changed: the `.json` transcript now contains
