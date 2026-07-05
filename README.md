@@ -75,7 +75,9 @@ Run the `list_supported_sites` tool to see the complete list of 1000+ supported 
 
 ## Prerequisites
 
-You need three system tools installed: **yt-dlp** (video downloader), **whisper.cpp** (the `whisper-cli` binary), and **ffmpeg** (audio processing). You also need to download at least one whisper.cpp model (see [Whisper Models](#whisper-models)).
+You need these tools installed: **yt-dlp** (video downloader), **whisper.cpp** (the `whisper-cli` binary), **ffmpeg** (audio processing), and — for YouTube — a **JavaScript runtime** (Deno). You also need to download at least one whisper.cpp model (see [Whisper Models](#whisper-models)).
+
+> **⚠️ YouTube needs Deno ≥ 2.3.0.** Modern yt-dlp must run JavaScript to solve YouTube's signature / "n" challenges. Without a JS runtime, YouTube downloads fail with errors that *look* like bot-detection (`No supported JavaScript runtime could be found`, `Signature solving failed`, `n challenge solving failed`, HTTP 403). yt-dlp auto-detects **Deno** — but it must be **version 2.3.0 or newer**; an older Deno is detected yet still can't solve the challenge. Run `deno --version` to check and `deno upgrade` if needed. Non-YouTube sites generally don't need it. This is a yt-dlp requirement, not specific to this tool. (The official `yt-dlp` binaries bundle the challenge-solver scripts, so Deno is all you add.)
 
 > If you set `REMOTE_WHISPER_URL` to offload transcription to a remote worker, you can skip installing `whisper-cpp` and downloading models locally.
 
@@ -85,6 +87,7 @@ You need three system tools installed: **yt-dlp** (video downloader), **whisper.
 brew install yt-dlp       # Video downloader (supports 1000+ sites)
 brew install whisper-cpp  # whisper.cpp transcription (installs `whisper-cli`)
 brew install ffmpeg       # Audio processing
+brew install deno         # JavaScript runtime (required for YouTube)
 ```
 
 ### Linux
@@ -94,6 +97,7 @@ brew install ffmpeg       # Audio processing
 sudo apt update
 sudo apt install ffmpeg
 pip install yt-dlp
+curl -fsSL https://deno.land/install.sh | sh   # JavaScript runtime (required for YouTube)
 # whisper.cpp: build from source, then put `whisper-cli` on your PATH
 git clone https://github.com/ggerganov/whisper.cpp && cd whisper.cpp && make
 # copy build/bin/whisper-cli to /usr/local/bin, or set WHISPER_CPP_BINARY to its path
@@ -105,13 +109,16 @@ git clone https://github.com/ggerganov/whisper.cpp && cd whisper.cpp && make
 # Install Python from python.org first
 pip install yt-dlp
 
-# Install ffmpeg using Chocolatey
+# Install ffmpeg + deno using Chocolatey
 choco install ffmpeg
+choco install deno   # JavaScript runtime (required for YouTube)
 
 # whisper.cpp: download a prebuilt release from
 # https://github.com/ggerganov/whisper.cpp/releases and put whisper-cli.exe on PATH,
 # or set WHISPER_CPP_BINARY to its full path.
 ```
+
+> **Deno not on PATH?** If you installed Deno but yt-dlp still reports "No supported JavaScript runtime" (common when the installer drops it in `~/.deno/bin`), symlink it somewhere already on PATH — e.g. `ln -sf ~/.deno/bin/deno ~/.local/bin/deno` — or add `~/.deno/bin` to your PATH.
 
 ### Verify installations (all platforms)
 
@@ -119,6 +126,7 @@ choco install ffmpeg
 yt-dlp --version
 whisper-cli --help
 ffmpeg -version
+deno --version
 ```
 
 ## Whisper Models
@@ -563,9 +571,19 @@ Download the model you're requesting: `bash scripts/download-models.sh base` (or
 
 Install whisper.cpp (`brew install whisper-cpp` on macOS) or set `WHISPER_CPP_BINARY` to the full path of your `whisper-cli` (or legacy `main`) binary.
 
+### YouTube fails: "No supported JavaScript runtime" / "Signature solving failed" / HTTP 403
+
+yt-dlp needs a JavaScript runtime to download from YouTube. **Install Deno ≥ 2.3.0** (`brew install deno`, `choco install deno`, or `curl -fsSL https://deno.land/install.sh | sh`) — yt-dlp auto-detects it. Two common gotchas:
+- **Deno not found** even though it's installed → it landed in `~/.deno/bin`, which isn't on PATH. Symlink it: `ln -sf ~/.deno/bin/deno ~/.local/bin/deno`.
+- **`n challenge solving failed` persists** with Deno installed → your Deno is **older than 2.3.0**. Run `deno --version`, then `deno upgrade`. (This is the sneaky one — an old Deno is detected but silently can't solve the challenge.)
+
+Verify with `deno --version`. See [Prerequisites](#prerequisites).
+
+> These errors often masquerade as bot-detection, but the fix is a JS runtime, **not** cookies. Also keep yt-dlp current (`yt-dlp -U` or `brew upgrade yt-dlp`) — an outdated yt-dlp makes YouTube failures worse.
+
 ### YouTube "Sign in to confirm you're not a bot"
 
-Set `YT_DLP_COOKIES` (path to a cookies file) or `YT_DLP_COOKIES_FROM_BROWSER` (e.g. `chrome`). See [Environment Variables](#environment-variables).
+First confirm you have Deno installed (see above) and yt-dlp is up to date — that resolves most cases. For genuinely gated content (age-restricted / members-only), set `YT_DLP_COOKIES` (path to a cookies file) or `YT_DLP_COOKIES_FROM_BROWSER` (e.g. `chrome`). See [Environment Variables](#environment-variables).
 
 ## Performance
 

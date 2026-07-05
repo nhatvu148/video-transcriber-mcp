@@ -117,6 +117,18 @@ export function resolveCookiesArgs(
   return null;
 }
 
+/**
+ * yt-dlp extractor args that dodge YouTube's nsig download throttling and the
+ * "Sign in to confirm you're not a bot" wall on the default `web` client. The
+ * `android`/`web_safari` clients serve un-throttled formats; yt-dlp falls
+ * through the list if one is unavailable. Ignored on non-YouTube URLs, so it's
+ * safe to always pass. Override the client list with YT_DLP_PLAYER_CLIENT.
+ */
+export function youtubeClientArgs(clients = process.env.YT_DLP_PLAYER_CLIENT): string[] {
+  const list = clients?.trim() || "android,web_safari,web";
+  return ["--extractor-args", `youtube:player_client=${list}`];
+}
+
 // ---------------------------------------------------------------------------
 // Metadata / platform detection
 // ---------------------------------------------------------------------------
@@ -370,7 +382,19 @@ async function downloadAudio(
   tempDir: string,
   onProgress?: (message: string) => void
 ): Promise<string> {
-  const args = ["-x", "--audio-format", "mp3", "-o", join(tempDir, "video.%(ext)s")];
+  const args = [
+    "-x",
+    "--audio-format",
+    "mp3",
+    // Be resilient to YouTube throttling interrupted streams.
+    "--retries",
+    "10",
+    "--fragment-retries",
+    "10",
+    "-o",
+    join(tempDir, "video.%(ext)s"),
+  ];
+  args.push(...youtubeClientArgs());
 
   const cookies = resolveCookiesArgs();
   if (cookies) {
@@ -675,7 +699,7 @@ export async function transcribeVideo(options: TranscriptionOptions): Promise<Tr
       await extractAudioFromLocal(absolutePath, audioPath, onProgress);
     } else {
       onProgress(`Fetching video metadata from ${url}...`);
-      const metaArgs = ["--dump-json"];
+      const metaArgs = ["--dump-json", ...youtubeClientArgs()];
       const cookies = resolveCookiesArgs();
       if (cookies) metaArgs.push(...cookies);
       metaArgs.push(url);
