@@ -1,7 +1,7 @@
 {
   "name": "video-transcriber-mcp",
-  "version": "1.1.1",
-  "description": "MCP server for transcribing videos from 1000+ platforms (YouTube, Vimeo, TikTok, Twitter, etc.) or local video files using Whisper",
+  "version": "2.0.0",
+  "description": "High-performance MCP server for transcribing videos from 1000+ platforms (YouTube, Vimeo, TikTok, Twitter, etc.) or local video files using whisper.cpp (4-10x faster than Python whisper)",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -10,6 +10,7 @@
   },
   "files": [
     "dist",
+    "scripts/download-models.sh",
     "README.md",
     "LICENSE"
   ],
@@ -32,7 +33,7 @@
     "video-transcription",
     "transcription",
     "whisper",
-    "openai",
+    "whisper-cpp",
     "yt-dlp",
     "multi-platform",
     "typescript",

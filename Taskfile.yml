@@ -16,8 +16,13 @@ tasks:
       - |
         echo "Checking system dependencies..."
         command -v yt-dlp >/dev/null 2>&1 && echo "✓ yt-dlp installed" || echo "✗ yt-dlp missing (brew install yt-dlp)"
-        command -v whisper >/dev/null 2>&1 && echo "✓ whisper installed" || echo "✗ whisper missing (pip install openai-whisper)"
+        command -v whisper-cli >/dev/null 2>&1 && echo "✓ whisper.cpp (whisper-cli) installed" || echo "✗ whisper-cli missing (brew install whisper-cpp)"
         command -v ffmpeg >/dev/null 2>&1 && echo "✓ ffmpeg installed" || echo "✗ ffmpeg missing (brew install ffmpeg)"
+
+  download-models:
+    desc: "Download whisper.cpp ggml models (usage: task download-models -- base | all)"
+    cmds:
+      - bash scripts/download-models.sh {{.CLI_ARGS | default "base"}}
 
   install:
     desc: Install dependencies
