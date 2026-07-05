@@ -1,0 +1,61 @@
+name: Publish to npm
+
+# Publishes the package to npm when a GitHub Release is published.
+# Can also be run manually from the Actions tab (workflow_dispatch).
+#
+# Setup required once:
+#   1. Create an npm access token (Automation, or a Granular token with
+#      "Read and write" for the video-transcriber-mcp package).
+#   2. Add it to this repo as an Actions secret named  NPM_TOKEN
+#      (Settings → Secrets and variables → Actions → New repository secret).
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # required for npm provenance (--provenance)
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      # No package-lock.json in this repo (it uses bun.lock), so `npm install`
+      # rather than `npm ci`. Installs devDeps (typescript) needed to build.
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Type-check
+        run: npm run check
+
+      # Guard: for a Release, the tag (e.g. v2.0.0) must match package.json.
+      # Prevents accidentally publishing a version that doesn't match the tag.
+      - name: Verify version matches release tag
+        if: github.event_name == 'release'
+        run: |
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          TAG="${GITHUB_REF_NAME#v}"
+          echo "package.json = $PKG_VERSION | release tag = $TAG"
+          if [ "$PKG_VERSION" != "$TAG" ]; then
+            echo "::error::package.json version ($PKG_VERSION) != release tag ($TAG). Bump package.json or fix the tag."
+            exit 1
+          fi
+
+      # `npm publish` runs the package's prepublishOnly script, which builds
+      # dist/ (npm run clean && tsc && fix-shebang). --provenance attaches a
+      # signed build-provenance attestation (needs id-token: write, public repo).
+      - name: Publish to npm
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
