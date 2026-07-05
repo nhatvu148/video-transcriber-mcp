@@ -3,21 +3,28 @@
 [![npm version](https://badge.fury.io/js/video-transcriber-mcp.svg)](https://www.npmjs.com/package/video-transcriber-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A Model Context Protocol (MCP) server that transcribes videos from **1000+ platforms** using OpenAI's Whisper model. Built with TypeScript for type safety and available via npx for easy installation.
+A Model Context Protocol (MCP) server that transcribes videos from **1000+ platforms** using **whisper.cpp** — 4-10x faster than Python Whisper. Built with TypeScript for type safety and available via npx for easy installation.
 
-> 🚀 **Looking for better performance?** Check out the [**Rust version**](https://github.com/nhatvu148/video-transcriber-mcp-rs) which uses whisper.cpp for significantly faster transcription with lower memory usage. Available on [crates.io](https://crates.io/crates/video-transcriber-mcp) with `cargo install video-transcriber-mcp`.
+> 🦀 **Prefer a standalone binary?** Check out the [**Rust version**](https://github.com/nhatvu148/video-transcriber-mcp-rs), which embeds whisper.cpp directly (no external CLI needed) and adds an optional HTTP/REST API. Available on [crates.io](https://crates.io/crates/video-transcriber-mcp) with `cargo install video-transcriber-mcp`.
 
 ## ✨ What's New
 
-- 🌍 **Multi-Platform Support**: Now supports 1000+ video platforms (YouTube, Vimeo, TikTok, Twitter/X, Facebook, Instagram, Twitch, educational sites, and more) via yt-dlp
+### v2.0.0
+
+- ⚡ **whisper.cpp engine**: switched from Python `openai-whisper` to **whisper.cpp** (via the `whisper-cli` binary) for 4-10x faster transcription with lower memory usage. ⚠️ **Breaking**: install `whisper-cpp` and download models (see [Prerequisites](#prerequisites)).
+- 🛰️ **Remote whisper worker**: offload transcription to a GPU service with `REMOTE_WHISPER_URL`.
+- 🍪 **yt-dlp cookies**: authenticate for age-restricted / members-only videos and bypass YouTube's bot check via `YT_DLP_COOKIES` or `YT_DLP_COOKIES_FROM_BROWSER`.
+- 🧹 **Transcript management tools**: `get_latest_transcript`, `delete_transcript`, `cleanup_old_transcripts`, `delete_all_transcripts`.
+- 📚 **Smarter listing**: `list_transcripts` now sorts newest-first and supports a `limit`.
+
+### Earlier
+
+- 🌍 **Multi-Platform Support**: 1000+ video platforms (YouTube, Vimeo, TikTok, Twitter/X, Facebook, Instagram, Twitch, educational sites, and more) via yt-dlp
 - 💻 **Cross-Platform**: Works on macOS, Linux, and Windows
 - 🎛️ **Configurable Whisper Models**: Choose from tiny, base, small, medium, or large models
 - 🌐 **Language Support**: Transcribe in 90+ languages or use auto-detection
 - 🔄 **Automatic Retries**: Network failures are handled automatically with exponential backoff
 - 🎯 **Platform Detection**: Automatically detects the video platform
-- 📋 **List Supported Sites**: New tool to see all 1000+ supported platforms
-- ⚡ **Improved Error Handling**: More specific and helpful error messages
-- 🔒 **Better Filename Handling**: Improved sanitization preserving more characters
 
 ## ⚠️ Legal Notice
 
@@ -39,14 +46,15 @@ We do not encourage or endorse violation of any platform's Terms of Service or c
 ## Features
 
 - 🎥 Download audio from 1000+ video platforms (powered by yt-dlp)
-- 📂 Transcribe local video files** (mp4, avi, mov, mkv, and more)
-- 🎤 Transcribe using OpenAI Whisper (local, no API key needed)
+- 📂 Transcribe local video files (mp4, avi, mov, mkv, and more)
+- ⚡ Transcribe using **whisper.cpp** locally (no API key needed) — 4-10x faster than Python Whisper
+- 🛰️ Optional remote whisper worker for GPU offload (`REMOTE_WHISPER_URL`)
+- 🍪 yt-dlp cookie support for age-restricted / bot-checked videos
 - 🎛️ Configurable Whisper models (tiny, base, small, medium, large)
 - 🌐 Support for 90+ languages with auto-detection
 - 📝 Generate transcripts in multiple formats (TXT, JSON, Markdown)
-- 📚 List and read previous transcripts as MCP resources
+- 📚 List, read, and manage previous transcripts (list/latest/delete/cleanup)
 - 🔌 Integrate seamlessly with Claude Code or any MCP client
-- ⚡ TypeScript + npx for easy installation
 - 🔒 Full type safety with TypeScript
 - 🔍 Automatic dependency checking
 - 🔄 Automatic retry logic for network failures
@@ -67,12 +75,16 @@ Run the `list_supported_sites` tool to see the complete list of 1000+ supported 
 
 ## Prerequisites
 
+You need three system tools installed: **yt-dlp** (video downloader), **whisper.cpp** (the `whisper-cli` binary), and **ffmpeg** (audio processing). You also need to download at least one whisper.cpp model (see [Whisper Models](#whisper-models)).
+
+> If you set `REMOTE_WHISPER_URL` to offload transcription to a remote worker, you can skip installing `whisper-cpp` and downloading models locally.
+
 ### macOS
 
 ```bash
-brew install yt-dlp         # Video downloader (supports 1000+ sites)
-brew install openai-whisper # Whisper transcription
-brew install ffmpeg         # Audio processing
+brew install yt-dlp       # Video downloader (supports 1000+ sites)
+brew install whisper-cpp  # whisper.cpp transcription (installs `whisper-cli`)
+brew install ffmpeg       # Audio processing
 ```
 
 ### Linux
@@ -81,44 +93,55 @@ brew install ffmpeg         # Audio processing
 # Ubuntu/Debian
 sudo apt update
 sudo apt install ffmpeg
-pip install yt-dlp openai-whisper
-
-# Fedora/RHEL
-sudo dnf install ffmpeg
-pip install yt-dlp openai-whisper
-
-# Arch Linux
-sudo pacman -S ffmpeg
-pip install yt-dlp openai-whisper
+pip install yt-dlp
+# whisper.cpp: build from source, then put `whisper-cli` on your PATH
+git clone https://github.com/ggerganov/whisper.cpp && cd whisper.cpp && make
+# copy build/bin/whisper-cli to /usr/local/bin, or set WHISPER_CPP_BINARY to its path
 ```
 
 ### Windows
 
-**Option 1: Using pip (recommended)**
 ```powershell
 # Install Python from python.org first
-pip install yt-dlp openai-whisper
+pip install yt-dlp
 
 # Install ffmpeg using Chocolatey
 choco install ffmpeg
 
-# Or download ffmpeg from: https://ffmpeg.org/download.html
-```
-
-**Option 2: Using winget**
-```powershell
-winget install yt-dlp.yt-dlp
-winget install Gyan.FFmpeg
-pip install openai-whisper
+# whisper.cpp: download a prebuilt release from
+# https://github.com/ggerganov/whisper.cpp/releases and put whisper-cli.exe on PATH,
+# or set WHISPER_CPP_BINARY to its full path.
 ```
 
 ### Verify installations (all platforms)
 
 ```bash
 yt-dlp --version
-whisper --version
+whisper-cli --help
 ffmpeg -version
 ```
+
+## Whisper Models
+
+whisper.cpp uses `ggml` model files stored in `~/.cache/video-transcriber-mcp/models/`. Download them with the bundled script:
+
+```bash
+# Download a single model (recommended: start with base)
+bash scripts/download-models.sh base
+
+# Or download everything
+bash scripts/download-models.sh all
+```
+
+| Model  | Size    | Notes                         |
+|--------|---------|-------------------------------|
+| tiny   | ~75 MB  | fastest, lowest accuracy      |
+| base   | ~142 MB | recommended default           |
+| small  | ~466 MB | good balance                  |
+| medium | ~1.5 GB | high accuracy                 |
+| large  | ~2.9 GB | best accuracy, slowest        |
+
+Run the `check_dependencies` tool at any time to see which models are installed.
 
 ## Quick Start
 
@@ -257,8 +280,8 @@ You can import and use it programmatically:
 ```typescript
 import { transcribeVideo, checkDependencies, WhisperModel } from 'video-transcriber-mcp';
 
-// Check dependencies
-checkDependencies();
+// Check dependencies — returns a human-readable status string
+console.log(checkDependencies());
 
 // Transcribe a video from URL with custom options
 const result = await transcribeVideo({
@@ -280,6 +303,8 @@ const localResult = await transcribeVideo({
 
 console.log('Title:', result.metadata.title);
 console.log('Platform:', result.metadata.platform);
+console.log('Words:', result.wordCount);
+console.log('Model:', result.modelUsed);
 console.log('Files:', result.files);
 ```
 
@@ -290,7 +315,7 @@ Transcripts are saved to `~/Downloads/video-transcripts/` by default.
 For each video, three files are generated:
 
 1. **`.txt`** - Plain text transcript
-2. **`.json`** - JSON with timestamps and metadata
+2. **`.json`** - JSON with video metadata, the transcript, and the model used
 3. **`.md`** - Markdown with video metadata and formatted transcript
 
 ### Example
@@ -325,18 +350,77 @@ Transcribe videos from 1000+ platforms or local video files to text.
 
 ### `list_transcripts`
 
-List all available transcripts with metadata.
+List all available transcripts with metadata, sorted by modification time (newest first).
 
 **Parameters:**
 - `output_dir` (optional): Directory to list
+- `limit` (optional): Return only the N most recent transcripts
+
+### `get_latest_transcript`
+
+Get the path and details of the most recently created/modified transcript. Useful to avoid accidentally reading an old transcript.
+
+**Parameters:**
+- `output_dir` (optional): Directory to search
+
+### `delete_transcript`
+
+Delete a specific transcript by video ID (removes all associated `.txt`, `.json`, `.md` files).
+
+**Parameters:**
+- `video_id` (required): The video ID to delete (e.g. `dQw4w9WgXcQ`)
+- `output_dir` (optional): Directory to delete from
+
+### `cleanup_old_transcripts`
+
+Delete transcripts older than a given number of days.
+
+**Parameters:**
+- `days` (required): Delete files older than this many days
+- `output_dir` (optional): Directory to clean
+
+### `delete_all_transcripts`
+
+Delete ALL transcripts in the output directory. **Cannot be undone.**
+
+**Parameters:**
+- `confirm` (required): Must be `true` to actually delete
+- `output_dir` (optional): Directory to clear
 
 ### `check_dependencies`
 
-Verify that all required dependencies are installed.
+Verify that all required dependencies (yt-dlp, ffmpeg, whisper.cpp) and models are installed.
 
 ### `list_supported_sites`
 
 List all 1000+ supported video platforms.
+
+## Environment Variables
+
+All are optional. See [`.env.example`](.env.example) for details. When using the MCP server, set these in your client's `env` block.
+
+| Variable | Description |
+|----------|-------------|
+| `YT_DLP_COOKIES` | Path to a Netscape-format cookies file (`--cookies`). Preferred on headless/Linux. |
+| `YT_DLP_COOKIES_FROM_BROWSER` | Browser to read cookies from (`chrome`, `brave`, `edge`, `firefox`, `safari`, …). Ignored if `YT_DLP_COOKIES` is set. |
+| `REMOTE_WHISPER_URL` | Offload transcription to a remote HTTP worker instead of running whisper.cpp locally. |
+| `WHISPER_CPP_BINARY` | Override the whisper.cpp CLI name/path (default `whisper-cli`). |
+
+Example Claude Code config with cookies:
+
+```json
+{
+  "mcpServers": {
+    "video-transcriber": {
+      "command": "npx",
+      "args": ["-y", "video-transcriber-mcp"],
+      "env": {
+        "YT_DLP_COOKIES_FROM_BROWSER": "chrome"
+      }
+    }
+  }
+}
+```
 
 ## Configuration Examples
 
@@ -405,13 +489,16 @@ npm run clean
 ```
 video-transcriber-mcp/
 ├── src/
-│   ├── index.ts          # MCP server implementation
-│   └── transcriber.ts    # Core transcription logic
+│   ├── index.ts          # MCP server implementation (8 tools)
+│   └── transcriber.ts    # Core transcription logic (whisper.cpp)
+├── scripts/
+│   └── download-models.sh # Download whisper.cpp ggml models
 ├── dist/                 # Built JavaScript (generated)
 ├── package.json          # Package configuration
 ├── tsconfig.json         # TypeScript configuration
+├── .env.example          # Documented environment variables
 ├── LICENSE               # MIT License
-└── README.md            # This file
+└── README.md             # This file
 ```
 
 ### Scripts
@@ -468,16 +555,23 @@ The build process automatically makes `dist/index.js` executable via the `fix-sh
 
 The platform might not be supported by yt-dlp. Run `list_supported_sites` to see all supported platforms.
 
+### "Whisper model not found"
+
+Download the model you're requesting: `bash scripts/download-models.sh base` (or `all`). Models live in `~/.cache/video-transcriber-mcp/models/`. Run `check_dependencies` to see what's installed.
+
+### "whisper.cpp CLI ('whisper-cli') not found"
+
+Install whisper.cpp (`brew install whisper-cpp` on macOS) or set `WHISPER_CPP_BINARY` to the full path of your `whisper-cli` (or legacy `main`) binary.
+
+### YouTube "Sign in to confirm you're not a bot"
+
+Set `YT_DLP_COOKIES` (path to a cookies file) or `YT_DLP_COOKIES_FROM_BROWSER` (e.g. `chrome`). See [Environment Variables](#environment-variables).
+
 ## Performance
 
-| Video Length | Processing Time (base model) | Output Size |
-|--------------|------------------------------|-------------|
-| 5 minutes    | ~1-2 minutes                 | ~5-10 KB    |
-| 10 minutes   | ~2-4 minutes                 | ~10-20 KB   |
-| 30 minutes   | ~5-10 minutes                | ~30-50 KB   |
-| 1 hour       | ~10-20 minutes               | ~60-100 KB  |
+whisper.cpp is roughly **4-10x faster** than Python `openai-whisper` on the same hardware, using less memory. Actual processing time depends on your CPU (P-core count on Apple Silicon), the selected model, and the video length.
 
-*Times are approximate and depend on CPU speed and model choice*
+*Tip: start with the `base` model and move up to `medium`/`large` only when you need more accuracy.*
 
 ## Advanced Configuration
 
@@ -530,19 +624,21 @@ MIT License - see [LICENSE](LICENSE) file for details
 
 ## TypeScript vs Rust Version
 
-This is the **TypeScript version** - great for:
-- ✅ Quick setup with npx (no installation)
+> **Project scope:** The **[Rust version](https://github.com/nhatvu148/video-transcriber-mcp-rs) is the source of truth.** This TypeScript package is intentionally kept **small and stable** — a lean local **stdio** MCP server for the npm/`npx` audience. Advanced/SaaS features (HTTP transport, auth, credits/billing, LLM summaries) live **only** in the Rust version and are *not* ported here. New capabilities land in Rust first; this package only tracks the shared MCP tool contract.
+
+Both versions use **whisper.cpp** for transcription and expose the same MCP tools.
+
+Pick the **TypeScript version** (this one) for:
+- ✅ Quick setup with npx (no compilation)
 - ✅ Node.js ecosystem familiarity
-- ✅ Easy to modify and extend
-- ✅ Good for learning and prototyping
+- ℹ️ Calls the `whisper-cli` binary (install `whisper-cpp` separately)
 
-Consider the **[Rust version](https://github.com/nhatvu148/video-transcriber-mcp-rs)** if you need:
-- 🚀 **Faster transcription** (uses whisper.cpp)
-- 💾 **Lower memory usage**
-- ⚡ **Native performance**
-- 📦 **Standalone binary** (no Node.js required)
+Pick the **[Rust version](https://github.com/nhatvu148/video-transcriber-mcp-rs)** for:
+- 📦 **Standalone binary** — whisper.cpp is embedded, no external CLI to install
+- 💾 **Lower memory usage** and native startup
+- 🌐 **HTTP/REST API** transport, auth, credits, and other SaaS features
 
-Both versions support the same MCP protocol and work identically with Claude Code!
+Both support the same MCP protocol and work identically with Claude Code!
 
 ## Links
 
@@ -554,7 +650,8 @@ Both versions support the same MCP protocol and work identically with Claude Cod
 
 ## Acknowledgments
 
-- OpenAI Whisper for transcription
+- [whisper.cpp](https://github.com/ggerganov/whisper.cpp) for fast local transcription
+- OpenAI Whisper for the underlying models
 - yt-dlp for multi-platform video downloading (1000+ sites)
 - Model Context Protocol SDK
 - Claude by Anthropic
