@@ -1,4 +1,4 @@
-import { execFile } from "child_process";
+import { execFile, execFileSync } from "child_process";
 import {
   mkdtempSync,
   mkdirSync,
@@ -17,11 +17,35 @@ export type WhisperModel = "tiny" | "base" | "small" | "medium" | "large";
 const ALL_MODELS: WhisperModel[] = ["tiny", "base", "small", "medium", "large"];
 
 /**
- * The whisper.cpp CLI binary name. `brew install whisper-cpp` installs it as
- * `whisper-cli`. Override with WHISPER_CPP_BINARY if it lives elsewhere / under
- * a different name (e.g. the legacy `main`).
+ * Common absolute install dirs for the whisper.cpp CLI, per platform. Probed
+ * when `whisper-cli` isn't found on PATH — which makes resolution robust even
+ * when the process runs with a stripped PATH (a common issue when an MCP client
+ * launches the server from a GUI context that lacks `/opt/homebrew/bin`).
  */
-const WHISPER_CLI = process.env.WHISPER_CPP_BINARY || "whisper-cli";
+function whisperProbeDirs(): string[] {
+  if (process.platform === "darwin") return ["/opt/homebrew/bin", "/usr/local/bin"];
+  if (process.platform === "linux") return ["/usr/local/bin", "/usr/bin", join(homedir(), ".local", "bin")];
+  return []; // Windows: rely on PATH or WHISPER_CPP_BINARY
+}
+
+/**
+ * Resolve the whisper.cpp CLI binary to invoke. Resolution order:
+ *   1. `WHISPER_CPP_BINARY` env (explicit override — e.g. legacy `main`).
+ *   2. An absolute path in a known install dir (see `whisperProbeDirs`).
+ *   3. Bare `whisper-cli`, resolved via PATH.
+ * `brew install whisper-cpp` installs it as `whisper-cli`.
+ */
+export function resolveWhisperBinary(): string {
+  const override = process.env.WHISPER_CPP_BINARY?.trim();
+  if (override) return override;
+
+  const exe = process.platform === "win32" ? "whisper-cli.exe" : "whisper-cli";
+  for (const dir of whisperProbeDirs()) {
+    const candidate = join(dir, exe);
+    if (existsSync(candidate)) return candidate;
+  }
+  return "whisper-cli"; // fall back to PATH resolution
+}
 
 interface VideoMetadata {
   videoId: string;
@@ -358,7 +382,7 @@ async function execWithRetry(
 function optimalWhisperThreads(): number {
   if (process.platform === "darwin") {
     try {
-      const out = require("child_process").execFileSync("sysctl", ["-n", "hw.perflevel0.physicalcpu"], {
+      const out = execFileSync("sysctl", ["-n", "hw.perflevel0.physicalcpu"], {
         encoding: "utf-8",
       });
       const n = parseInt(String(out).trim(), 10);
@@ -558,16 +582,19 @@ async function transcribeLocal(
     args.push("-l", "auto");
   }
 
+  const whisperBin = resolveWhisperBinary();
   onProgress?.(`Transcribing audio with whisper.cpp (model: ${model})...`);
   try {
-    await execFilePromise(WHISPER_CLI, args);
+    await execFilePromise(whisperBin, args);
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     if (msg.includes("ENOENT")) {
       throw new Error(
-        `whisper.cpp CLI ('${WHISPER_CLI}') not found. Install it with:\n` +
-          `  brew install whisper-cpp        (macOS)\n` +
-          `Or build from https://github.com/ggerganov/whisper.cpp and set WHISPER_CPP_BINARY.`
+        `whisper.cpp CLI ('${whisperBin}') not found. Install it with:\n` +
+          `  brew install whisper-cpp                       (macOS)\n` +
+          `  build from https://github.com/ggerganov/whisper.cpp   (Linux)\n` +
+          `  download a release .exe and set WHISPER_CPP_BINARY    (Windows)\n` +
+          `Or set WHISPER_CPP_BINARY to the full path of your whisper-cli binary.`
       );
     }
     throw new Error(`whisper.cpp transcription failed: ${msg}`);
@@ -779,25 +806,64 @@ export function checkDependencies(): string {
 
   const has = (cmd: string, args: string[]): boolean => {
     try {
-      require("child_process").execFileSync(cmd, args, { stdio: "ignore" });
+      execFileSync(cmd, args, { stdio: "ignore" });
       return true;
     } catch (error) {
       return false;
     }
   };
 
-  lines.push(has("yt-dlp", ["--version"]) ? "✅ yt-dlp: installed" : "❌ yt-dlp: NOT installed");
-  lines.push(has("ffmpeg", ["-version"]) ? "✅ ffmpeg: installed" : "❌ ffmpeg: NOT installed");
+  const firstLine = (cmd: string, args: string[]): string | null => {
+    try {
+      const out = execFileSync(cmd, args, { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] });
+      return String(out).split("\n")[0].trim();
+    } catch (error) {
+      return null;
+    }
+  };
 
+  // --- core CLI tools ---
+  lines.push(has("yt-dlp", ["--version"]) ? "✅ yt-dlp: installed" : "❌ yt-dlp: NOT installed (see README → Prerequisites)");
+  lines.push(has("ffmpeg", ["-version"]) ? "✅ ffmpeg: installed" : "❌ ffmpeg: NOT installed (brew install ffmpeg)");
+
+  // --- JavaScript runtime (Deno) — yt-dlp requires it to download from YouTube ---
+  const denoLine = firstLine("deno", ["--version"]);
+  if (!denoLine) {
+    lines.push("❌ deno (JS runtime, required for YouTube): NOT installed — install Deno ≥ 2.3.0");
+  } else {
+    const m = denoLine.match(/(\d+)\.(\d+)\.(\d+)/);
+    if (m) {
+      const major = parseInt(m[1], 10);
+      const minor = parseInt(m[2], 10);
+      const ok = major > 2 || (major === 2 && minor >= 3);
+      lines.push(
+        ok
+          ? `✅ deno ${m[0]} (JS runtime for YouTube)`
+          : `⚠️  deno ${m[0]}: TOO OLD — YouTube needs ≥ 2.3.0. Run 'deno upgrade'.`
+      );
+    } else {
+      lines.push("✅ deno: installed (JS runtime for YouTube)");
+    }
+  }
+
+  // --- whisper.cpp (skipped when offloading to a remote worker) ---
   const remote = process.env.REMOTE_WHISPER_URL?.trim();
-  if (!remote) {
+  if (remote) {
+    lines.push(`ℹ️  whisper.cpp: skipped (REMOTE_WHISPER_URL set → ${remote})`);
+  } else {
+    const whisperBin = resolveWhisperBinary();
+    // An absolute path (from a probe dir or override) is verified by existence;
+    // a bare command is probed by executing it (PATH resolution).
+    const isPath = whisperBin.includes("/") || whisperBin.includes("\\");
+    const found = isPath ? existsSync(whisperBin) : has(whisperBin, ["--help"]);
     lines.push(
-      has(WHISPER_CLI, ["--help"])
-        ? `✅ whisper.cpp CLI (${WHISPER_CLI}): installed`
-        : `❌ whisper.cpp CLI (${WHISPER_CLI}): NOT installed (brew install whisper-cpp)`
+      found
+        ? `✅ whisper.cpp CLI: ${whisperBin}`
+        : `❌ whisper.cpp CLI (${whisperBin}): NOT installed (brew install whisper-cpp, or set WHISPER_CPP_BINARY)`
     );
   }
 
+  // --- models ---
   lines.push("");
   lines.push("📦 Whisper Models:");
   if (remote) {
@@ -815,7 +881,7 @@ export function checkDependencies(): string {
       }
       lines.push(`  ✅ ${label}: ${p} (${size})`);
     } else {
-      lines.push(`  ❌ ${label}: not installed`);
+      lines.push(`  ❌ ${label}: not installed (bash scripts/download-models.sh ${model})`);
     }
   }
 
