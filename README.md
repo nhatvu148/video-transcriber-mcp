@@ -141,6 +141,8 @@ bash scripts/download-models.sh base
 bash scripts/download-models.sh all
 ```
 
+> **Windows:** `download-models.sh` is a Bash script — run it from **Git Bash** or **WSL**. Or download the model manually: grab `ggml-base.bin` (or another size) from <https://huggingface.co/ggerganov/whisper.cpp/tree/main> and drop it into `%USERPROFILE%\.cache\video-transcriber-mcp\models\`.
+
 | Model  | Size    | Notes                         |
 |--------|---------|-------------------------------|
 | tiny   | ~75 MB  | fastest, lowest accuracy      |
