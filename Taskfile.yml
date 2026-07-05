@@ -45,8 +45,29 @@ tasks:
     cmds:
       - bun run build
 
+  release:
+    desc: "Tag & GitHub-release the current package.json version (CI then publishes to npm)"
+    cmds:
+      - |
+        set -e
+        VERSION=$(node -p "require('./package.json').version")
+        TAG="v${VERSION}"
+        if git rev-parse "$TAG" >/dev/null 2>&1 || gh release view "$TAG" >/dev/null 2>&1; then
+          echo "❌ $TAG already exists — bump the version first (npm version patch|minor|major)."
+          exit 1
+        fi
+        echo "🔎 Type-checking before release..."
+        npm run check
+        NOTES=$(mktemp)
+        awk -v ver="$VERSION" '$0 ~ ("^## " ver) {f=1; print; next} /^## [0-9]/ {f=0} f {print}' CHANGELOG.md > "$NOTES"
+        [ -s "$NOTES" ] || echo "⚠️  No CHANGELOG entry for $VERSION — release notes will be empty."
+        echo "🚀 Creating GitHub release $TAG..."
+        gh release create "$TAG" --title "$TAG" --notes-file "$NOTES"
+        rm -f "$NOTES"
+        echo "✅ $TAG released — the 'Publish to npm' workflow will publish it. Watch it with: gh run watch"
+
   publish:
-    desc: Publish to npm registry
+    desc: "Manual publish to npm (fallback — normally 'task release' + CI handles this)"
     deps: [build]
     cmds:
       - bun publish
