@@ -1,6 +1,7 @@
 # Video Transcriber MCP Server
 
-[![npm version](https://badge.fury.io/js/video-transcriber-mcp.svg)](https://www.npmjs.com/package/video-transcriber-mcp)
+[![npm version](https://img.shields.io/npm/v/video-transcriber-mcp.svg)](https://www.npmjs.com/package/video-transcriber-mcp)
+[![npm downloads](https://img.shields.io/npm/dm/video-transcriber-mcp.svg)](https://www.npmjs.com/package/video-transcriber-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A Model Context Protocol (MCP) server that transcribes videos from **1000+ platforms** using **whisper.cpp** — 4-10x faster than Python Whisper. Built with TypeScript for type safety and available via npx for easy installation.
